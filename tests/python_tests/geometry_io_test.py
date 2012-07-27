@@ -64,7 +64,6 @@ def test_wkb_parsing():
     for wkb in wkbs:
         path = mapnik.Path()
         success = path.add_wkb(unhexlify(wkb[2]))
-        print wkb[1]
         if wkb[0] > 0:
             eq_(success,True)
         else:
