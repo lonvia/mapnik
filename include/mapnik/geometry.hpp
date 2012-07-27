@@ -335,6 +335,11 @@ public:
         push_vertex(x,y,SEG_MOVETO);
     }
 
+    unsigned size() const
+    {
+        return cont_.size();
+    }
+
     unsigned num_points() const
     {
         return cont_.size();
