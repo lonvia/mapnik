@@ -125,10 +125,11 @@ void grid_renderer<T>::process(markers_symbolizer const& sym,
 
                         render_marker(feature,
                                       pixmap_.get_resolution(),
-                                      pixel_position(x - 0.5 * w, y - 0.5 * h),
+                                      pixel_position(x, y),
                                       **mark,
                                       tr,
-                                      sym.get_opacity());
+                                      sym.get_opacity(),
+                                      sym.comp_op());
                     }
                 }
 
