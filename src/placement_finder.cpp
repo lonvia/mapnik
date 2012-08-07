@@ -140,6 +140,10 @@ void placement_finder<DetectorT>::find_point_placements(T & shape_path)
         return;
     }
 
+    if (total_distance < p.minimum_path_length)
+        return;
+
+
     int num_labels = 1;
     if (p.label_spacing > 0)
         num_labels = static_cast<int> (floor(total_distance / pi.get_actual_label_spacing()));
@@ -149,9 +153,28 @@ void placement_finder<DetectorT>::find_point_placements(T & shape_path)
     if (num_labels <= 0)
         num_labels = 1;
 
+    //Read out the tolerance
+    // No tolreance if not given (old behaviour)
+    double tolerance_delta, tolerance;
+    if (p.label_position_tolerance > 0)
+    {
+        tolerance = p.label_position_tolerance;
+        tolerance_delta = std::max ( 1.0, p.label_position_tolerance/100.0 );
+    }
+    else
+    {
+        tolerance = 0.0;
+        tolerance_delta = 1.0;
+    }
+
+
     double distance = 0.0; // distance from last label
     double spacing = total_distance / num_labels;
-    double target_distance = spacing / 2; // first label should be placed at half the spacing
+
+    if (tolerance > spacing) tolerance = spacing;
+
+    double target_distance = (spacing - tolerance) / 2; // first label should be placed at half the spacing
+    double diff = 0.0;
 
     while (!agg::is_stop(cmd = shape_path.vertex(&new_x,&new_y))) //For each node in the shape
     {
@@ -167,14 +190,25 @@ void placement_finder<DetectorT>::find_point_placements(T & shape_path)
             distance += segment_length;
 
             //While we have enough distance to place text in
-            while (distance > target_distance)
+            while (distance > (target_distance + diff))
             {
                 //Try place at the specified place
-                double new_weight = (segment_length - (distance - target_distance))/segment_length;
-                find_point_placement(old_x + (new_x-old_x)*new_weight, old_y + (new_y-old_y)*new_weight);
-
-                distance -= target_distance; //Consume the spacing gap we have used up
-                target_distance = spacing; //Need to reset the target_distance as it is spacing/2 for the first label.
+                double new_weight = (segment_length - (distance - target_distance  - diff))/segment_length;
+                if (find_point_placement(old_x + (new_x-old_x)*new_weight, old_y + (new_y-old_y)*new_weight))
+                {
+                    distance -= target_distance; //Consume the spacing gap we have used up
+                    target_distance = spacing; //Need to reset the target_distance as it is spacing/2 for the first label.
+                    diff = 0.0;
+                }
+                else
+                {
+                    diff += tolerance_delta;
+                    if (diff > tolerance) {
+                        distance -= target_distance;
+                        target_distance = spacing;
+                        diff = 0.0;
+                    }
+                }
             }
         }
 
@@ -374,7 +408,7 @@ void placement_finder<DetectorT>::adjust_position(text_path *current_placement)
 }
 
 template <typename DetectorT>
-void placement_finder<DetectorT>::find_point_placement(double label_x,
+bool placement_finder<DetectorT>::find_point_placement(double label_x,
                                                        double label_y,
                                                        double angle)
 {
@@ -471,13 +505,13 @@ void placement_finder<DetectorT>::find_point_placement(double label_x,
                 (!p.allow_overlap &&
                  !detector_.has_point_placement(e, pi.get_actual_minimum_distance())))
             {
-                return;
+                return false;
             }
 
             // if avoid_edges test dimensions contains e
             if (p.avoid_edges && !dimensions_.contains(e))
             {
-                return;
+                return false;
             }
 
             if (p.minimum_padding > 0)
@@ -489,7 +523,7 @@ void placement_finder<DetectorT>::find_point_placement(double label_x,
                                    e.maxy()+min_pad);
                 if (!dimensions_.contains(epad))
                 {
-                    return;
+                    return false;
                 }
             }
 
@@ -510,7 +544,7 @@ void placement_finder<DetectorT>::find_point_placement(double label_x,
                              box.maxy() + current_placement->center.y);
 
             // abort the whole placement if the additional envelopes can't be placed.
-            if (!detector_.has_point_placement(pt, p.minimum_distance)) return;
+            if (!detector_.has_point_placement(pt, p.minimum_distance)) return false;
 
             c_envelopes.push(pt);
         }
@@ -524,6 +558,8 @@ void placement_finder<DetectorT>::find_point_placement(double label_x,
     }
 
     placements_.push_back(current_placement.release());
+
+    return true;
 }
 
 

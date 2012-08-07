@@ -64,7 +64,7 @@ public:
                      box2d<double> const& extent);
 
     /** Try place a single label at the given point. */
-    void find_point_placement(double pos_x, double pos_y, double angle=0.0);
+    bool find_point_placement(double pos_x, double pos_y, double angle=0.0);
 
     /** Iterate over the given path, placing point labels with respect to label_spacing. */
     template <typename T>
